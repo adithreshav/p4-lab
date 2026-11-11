@@ -7,22 +7,28 @@ Write each section in your own words, about your own runs. Quote the evidence fi
 
 ## 1. Analysis: the loop
 
-<!-- How did you create the tunnel loop (which entry, on which switch, which commands)?
-     What did the switch logs show over time, with numbers from loop-before.txt?
-     Then look at the IPv4 path in tunnel.p4: it decrements the TTL. Does that stop an IPv4
-     loop in this program? Check the code, and explain what happens when TTL reaches 0. -->
+     I created the tunnel by changing the myTunnel_exact entry for key 3, from port 3 to port 1 using the sh ./p4cli s2 "table_modify MyIngress.myTunnel_exact MyIngress.myTunnel_forward 2 1" command. 
+     
+     After sending a single tunneled packet with --tunnel 3, I used the sh grep -c "Processing packet received" logs/s1.txt logs/s2.txt and sh sleep 5; grep -c "Processing packet received" logs/s1.txt logs/s2.txt commands which shows the count go from 73 (s1) and 70 (s2) to 150 and 148 because the packet is looping between the 2 switches. s1 had a little higher count fure to the "h1 python3 send.py 10.84.0.3 "loop" --tunnel 3" command.
+
+     The TTL didnt stop an IPv4 loop because nothing in MyIngress or MyEgress checks the value. The only drops in the program are the table miss ((default_action = drop()) or a packet with no valid tunnel or IPv4 header. In ipv4_forward theres a line "hdr.ipv4.ttl = hdr.ipv4.ttl - 1;". Based on that, when it reaches 0 and it has to minus 1, it will wraparound and reset to 255 since ttl is a 8-bit field. 
 
 ## 2. Design: the hop limit
 
-<!-- Your header change and your pipeline change, and the reason for each choice:
-     - the field's size, and where in the header you put it (and why there);
-     - the starting value send.py uses, and how you chose it;
-     - where it's decremented, and what happens when it runs out;
-     - what else had to change for every part of the path to agree (parser, deparser, hosts). -->
+     Field size: 8 bits. The reason I chose 8 bits is because 255 hops is way more than enough for this netwok and the same range as IPv4's TTL. It is also one byte which Scapy's ByteField handles directly. The position I placed it is after dst_id. This is for backward compatibily because when a old switch readds only the first 4 byte, it will still be correct.
+
+     Starting value: I choose 8 because it will give mmore room to the network to grow. Smaller value means it will be dropped earlier eventhough currently there is only 2 switches that it crosses. 
+
+     Where it's decremented: In ingress, before the myTunnel_exact lookup. If the hop limit is 0, the packet will be dropped. Otherwise, it will decrement by 1 and will be forwarded to the next hop. It is decremented at the ingress so that the packet is dropped before it takes queue space if the hop limit is 0 already.
+
+     What else changed: The host changed, the send.py and receive.py files define the header. Therefore, they both needed the new ByteField, in the same position.
 
 ## 3. Implementation
 
-<!-- Summarise what you changed in tunnel.p4, send.py and receive.py. The pull request shows
+<!-- An 8-bit hop limit is added to myTunnel_t in tunnel.p4, and in the ingress, the hop limit is checked and decrement by one each time until it reaches 0 and will be dropped. 
+
+The ByteField added in both hosts' MyTunnel classes
+Summarise what you changed in tunnel.p4, send.py and receive.py. The pull request shows
      the code itself: here, explain anything a reviewer might not see from the diff alone. -->
 
 ## 4. Evidence: it works
