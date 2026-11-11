@@ -120,7 +120,15 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        // TODO (Step 5): tunnelled packets should use myTunnel_exact instead
+        apply {
+            if (hdr.myTunnel.isValid()) {
+                myTunnel_exact.apply();
+            } else if (hdr.ipv4.isValid()) {
+                ipv4_lpm.apply();
+            } else {
+                drop();
+            }
+        }
         if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
         } else {
