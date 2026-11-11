@@ -120,20 +120,19 @@ control MyIngress(inout headers hdr,
     }
 
     apply {
-        apply {
-            if (hdr.myTunnel.isValid()) {
-                myTunnel_exact.apply();
-            } else if (hdr.ipv4.isValid()) {
-                ipv4_lpm.apply();
-            } else {
-                drop();
-            }
-        }
-        if (hdr.ipv4.isValid()) {
+        if (hdr.myTunnel.isValid()) {
+            myTunnel_exact.apply();
+        } else if (hdr.ipv4.isValid()) {
             ipv4_lpm.apply();
         } else {
             drop();
         }
+        /**
+        if (hdr.ipv4.isValid()) {
+            ipv4_lpm.apply();
+        } else {
+            drop();
+        } **/
     }
 }
 
