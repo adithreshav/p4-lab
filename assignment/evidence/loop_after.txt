@@ -1,0 +1,121 @@
+Command:sh ./p4cli s2 table_dump MyIngress.myTunnel_exact
+Output:
+Done
+==========
+TABLE ENTRIES
+**********
+Dumping entry 0x0
+Match key:
+* myTunnel.dst_id     : EXACT     0001
+Action entry: MyIngress.myTunnel_forward - 01
+**********
+Dumping entry 0x1
+Match key:
+* myTunnel.dst_id     : EXACT     0002
+Action entry: MyIngress.myTunnel_forward - 02
+**********
+Dumping entry 0x2
+Match key:
+* myTunnel.dst_id     : EXACT     0003
+Action entry: MyIngress.myTunnel_forward - 03
+==========
+Dumping default entry
+Action entry: MyIngress.drop - 
+==========
+
+Command: sh ./p4cli s2 "table_modify MyIngress.myTunnel_exact MyIngress.myTunnel_forward 2 1"
+Output:
+Done
+Modifying entry 2 for exact match table MyIngress.myTunnel_exact
+
+Command: sh ./p4cli s2 table_dump MyIngress.myTunnel_exact
+Output:
+Done
+==========
+TABLE ENTRIES
+**********
+Dumping entry 0x0
+Match key:
+* myTunnel.dst_id     : EXACT     0001
+Action entry: MyIngress.myTunnel_forward - 01
+**********
+Dumping entry 0x1
+Match key:
+* myTunnel.dst_id     : EXACT     0002
+Action entry: MyIngress.myTunnel_forward - 02
+**********
+Dumping entry 0x2
+Match key:
+* myTunnel.dst_id     : EXACT     0003
+Action entry: MyIngress.myTunnel_forward - 01
+==========
+Dumping default entry
+Action entry: MyIngress.drop - 
+==========
+
+Command:h1 python3 send.py 10.84.0.3 "loop" --tunnel 3
+Output:
+###[ Ethernet ]### 
+  dst       = ff:ff:ff:ff:ff:ff
+  src       = 00:00:00:00:00:01
+  type      = 0x1212
+###[ MyTunnel ]### 
+     proto_id  = 2048
+     dst_id    = 3
+     hop_limit = 8
+###[ IP ]### 
+        version   = 4
+        ihl       = 5
+        tos       = 0x0
+        len       = 32
+        id        = 1
+        flags     = 
+        frag      = 0
+        ttl       = 64
+        proto     = udp
+        chksum    = 0x6621
+        src       = 10.84.0.1
+        dst       = 10.84.0.3
+        \options   \
+###[ UDP ]### 
+           sport     = 4321
+           dport     = 4321
+           len       = 12
+           chksum    = 0xed88
+###[ Raw ]### 
+              load      = 'loop'
+
+Sent from h1-eth0.
+
+Command: sh grep -c "Processing packet received" logs/s1.txt logs/s2.txt
+Output:
+logs/s1.txt:7
+logs/s2.txt:4
+
+Command: sh sleep 5; grep -c "Processing packet received" logs/s1.txt logs/s2.txt
+Output:
+logs/s1.txt:7
+logs/s2.txt:4
+
+Short explanation: s1.txt shows 7 instead of 5 because the first 2 packets [0.0] and [1.0] were not related to the hop limit. 
+
+Command: sh grep "hop_limit" logs/s2.txt
+[04:36:27.881] [bmv2] [T] [thread 29433] [0.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.881] [bmv2] [T] [thread 29433] [0.0] [cxt 0] tunnel.p4(128) Primitive hdr.myTunnel.hop_limit = hdr.myTunnel.hop_limit - 1
+[04:36:27.886] [bmv2] [T] [thread 29433] [1.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.886] [bmv2] [T] [thread 29433] [1.0] [cxt 0] tunnel.p4(128) Primitive hdr.myTunnel.hop_limit = hdr.myTunnel.hop_limit - 1
+[04:36:27.891] [bmv2] [T] [thread 29433] [2.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.893] [bmv2] [T] [thread 29433] [2.0] [cxt 0] tunnel.p4(128) Primitive hdr.myTunnel.hop_limit = hdr.myTunnel.hop_limit - 1
+[04:36:27.897] [bmv2] [T] [thread 29433] [3.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.897] [bmv2] [T] [thread 29433] [3.0] [cxt 0] tunnel.p4(128) Primitive hdr.myTunnel.hop_limit = hdr.myTunnel.hop_limit - 1
+
+Short explanation: In s2.txt, it is shown that the condition is false for 4 times before going back to s1 where the condition became true before the 5th loop.
+
+Command: sh grep "hop_limit == 0" logs/s1.txt
+[04:36:27.875] [bmv2] [T] [thread 29416] [2.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.884] [bmv2] [T] [thread 29416] [3.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.888] [bmv2] [T] [thread 29416] [4.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.894] [bmv2] [T] [thread 29416] [5.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is false
+[04:36:27.902] [bmv2] [T] [thread 29416] [6.0] [cxt 0] tunnel.p4(125) Condition "hdr.myTunnel.hop_limit == 0" (node_3) is true
+
+Short explanation: This shows that at the fifth try the condition for hop limit == 0 is true meaning it is dropped.

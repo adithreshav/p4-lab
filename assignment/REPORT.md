@@ -25,11 +25,11 @@ Write each section in your own words, about your own runs. Quote the evidence fi
 
 ## 3. Implementation
 
-<!-- An 8-bit hop limit is added to myTunnel_t in tunnel.p4, and in the ingress, the hop limit is checked and decrement by one each time until it reaches 0 and will be dropped. 
+     What changed
+     An 8-bit hop limit is added to myTunnel_t in tunnel.p4, and in the ingress, the hop limit is checked and decrement by one each time until it reaches 0 and will be dropped. 
 
-The ByteField added in both hosts' MyTunnel classes
-Summarise what you changed in tunnel.p4, send.py and receive.py. The pull request shows
-     the code itself: here, explain anything a reviewer might not see from the diff alone. -->
+     The ByteField added in both hosts' MyTunnel classes. send.py now takes a new paramater which is --hops and the hop limit is printed by receive.py
+
 
 ## 4. Evidence: it works
 
@@ -53,10 +53,7 @@ Summarise what you changed in tunnel.p4, send.py and receive.py. The pull reques
 
 ## AI use
 
-<!-- This assignment is Level 3 (Open): AI use is allowed if you declare it. State which tools you
-     used (or "None") and what each did — for example "ChatGPT explained the bmv2 log format;
-     the first draft of the hop-limit check came from Copilot, which I then changed and tested".
-     Be ready to explain any part of your work yourself. -->
+     AI Use (Level 3): Use Claude to understand the lab instructions and further understand the output of certain commands. For example, in C5 to understand the logs to calculate how many times the packets pass through the switches. I also used AI for extra commands to double check certain outcomes. 
 
 ## Evidence files
 
